@@ -35,6 +35,10 @@ struct User {
     email: String
 }
 
+
+#[macro_use]
+extern crate serde_json;
+
 fn main() {
 
     let mut server = Nickel::new();
@@ -45,6 +49,55 @@ fn main() {
         format!("Hello from GET /users")
 
     });
+//  fn get_data_string(result: MongoResult<Document>) -> Result<Json, String> {
+//     match result {
+//         Ok(doc) => Ok(Bson::Document(doc).to_json()),
+//         // Ok(doc) => Ok("hey"),
+//         Err(e) => Err(format!("{}", e))
+//     }
+// }
+
+// router.get("/users", middleware! { |request, response|
+
+//     // Connect to the database
+//     let client = Client::connect("localhost", 27017)
+//       .ok().expect("Error establishing connection.");
+
+//     // The users collection
+//     let coll = client.db("rust-users").collection("users");
+
+//     // Create cursor that finds all documents
+//     let cursor = coll.find(None, None).unwrap();
+
+//     // Opening for the JSON string to be returned
+//     let mut data_result = "{\"data\":[".to_owned();
+
+//     for (i, result) in cursor.enumerate() {
+//         // match get_data_string(result) {
+//         //     Ok(data) => {
+//         //         // let string_data = if i == 0 { 
+//         //         //     format!("{}", data)
+//         //         // } else {
+//         //         //     format!("{},", data)
+//         //         // };
+//         //         let string_data = format!("{}", data);
+//         //         data_result.push_str(&string_data);
+//         //     },
+
+//         //     Err(e) => return response.send(format!("{}", e))
+//         // }
+//             let string_data = format!("{}", json!(result);
+//              data_result.push_str(&string_data);
+//     }
+
+//     // Close the JSON string
+//     data_result.push_str("]}");
+
+//     // Send back the result
+//     return response.send(format!("{}", data_result));
+
+//     });
+ 
 
     // router.post("/users/new", middleware! { |request, response|
 
@@ -79,12 +132,36 @@ fn main() {
 
     });
 
+    // router.delete("/users/:id", middleware! { |request, response|
+    //     format!("Hello from DELETE /users/:id")
+
+    // });
     router.delete("/users/:id", middleware! { |request, response|
 
-        format!("Hello from DELETE /users/:id")
+        let client = Client::connect("localhost", 27017)
+            .ok().expect("Failed to initialize standalone client.");
+
+        // The users collection
+        let coll = client.db("rust-users").collection("users");
+
+        // Get the objectId from the request params
+        let object_id = request.param("id").unwrap();
+
+        // Match the user id to an bson ObjectId
+        let id = match ObjectId::with_string(object_id) {
+            Ok(oid) => oid,
+            Err(e) => return response.send(format!("{}", e))
+        };
+
+        match coll.delete_one(doc! {"_id" => id}, None) {
+            Ok(_) => (StatusCode::Ok, "Item deleted!"),
+            Err(e) => {
+                println!("error");
+                return response.send(format!("{}", e));
+            }
+        }
 
     });
-
     server.utilize(router);
 
     server.listen("127.0.0.1:9000");
